@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ウキが浮かぶ釣り場</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: black;
+    }
+
+    #container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #background {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      z-index: 0;
+    }
+
+    #uki-wrapper {
+      position: absolute;
+      overflow: hidden;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    #uki {
+      display: block;
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform-origin: top left;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <img id="background" src="turiba.png" alt="釣り場の背景">
+    <div id="uki-wrapper">
+      <img id="uki" src="herauki.png" alt="ウキ">
+    </div>
+  </div>
+
+  <script>
+    const background = document.getElementById('background');
+    const uki = document.getElementById('uki');
+    const ukiWrapper = document.getElementById('uki-wrapper');
+    const container = document.getElementById('container');
+
+    let ukiScale = 1;
+    let maskHeight = 0;
+
+    function positionUki() {
+      const containerRect = container.getBoundingClientRect();
+      const bgRatio = background.naturalWidth / background.naturalHeight;
+      const containerRatio = containerRect.width / containerRect.height;
+
+      let bgDisplayWidth, bgDisplayHeight;
+
+      if (bgRatio > containerRatio) {
+        bgDisplayWidth = containerRect.width;
+        bgDisplayHeight = containerRect.width / bgRatio;
+      } else {
+        bgDisplayHeight = containerRect.height;
+        bgDisplayWidth = containerRect.height * bgRatio;
+      }
+
+      const bgScale = bgDisplayWidth / background.naturalWidth;
+      ukiScale = bgScale * 0.2; // ウキ画像のサイズ調整
+
+      const originalWidth = uki.naturalWidth;
+      const originalHeight = uki.naturalHeight;
+      const scaledWidth = originalWidth * ukiScale;
+      const scaledHeight = originalHeight * ukiScale;
+      maskHeight = scaledHeight / 2;
+
+      const bgLeft = (containerRect.width - bgDisplayWidth) / 2;
+      const bgTop = (containerRect.height - bgDisplayHeight) / 2;
+
+      const centerX = bgLeft + (bgDisplayWidth - scaledWidth) / 2;
+      const fixedWaterlineY = bgTop + bgDisplayHeight * 0.75;
+
+      // マスク領域（水面）を設定
+      ukiWrapper.style.left = `${centerX}px`;
+      ukiWrapper.style.top = `${fixedWaterlineY - maskHeight}px`; // 上半分が表示される位置
+      ukiWrapper.style.width = `${scaledWidth}px`;
+      ukiWrapper.style.height = `${maskHeight}px`;
+
+      // ウキ画像自体
+      uki.style.width = `${originalWidth}px`;
+      uki.style.height = `${originalHeight}px`;
+      uki.style.transform = `scale(${ukiScale})`;
+      uki.style.top = `0px`; // 初期位置＝ちょうど上半分が見える状態
+    }
+
+    function whenLoaded(img, callback) {
+      if (img.complete) {
+        callback();
+      } else {
+        img.onload = callback;
+      }
+    }
+
+    function animateUki() {
+      const offset = (Math.random() * 2 - 1) * 2; // -2〜+2px
+      uki.style.top = `${offset}px`; // 下に行くと沈む、上に行くと浮く
+    }
+
+    whenLoaded(background, () => {
+      whenLoaded(uki, () => {
+        positionUki();
+        window.addEventListener('resize', positionUki);
+        setInterval(animateUki, 200); // 0.2秒ごとに揺れる
+      });
+    });
+  </script>
+</body>
+</html>
