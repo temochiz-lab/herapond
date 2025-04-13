@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <!-- Google Fontsのリンクとカスタムフォント定義 -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Uzura&display=swap">
+  <meta charset="UTF-8">
+  <title>ヘラ野釣り</title>
+  <style>
+    /* フォント uzura を読み込み */
+    @font-face {
+      font-family: 'Uzura';
+      src: url('./font/uzura.ttf') format('truetype');
+    }
+
+    /* 開始ボタンのふんわり点滅アニメーション */
+    @keyframes blink-border {
+      0%   { border-color: rgba(255, 0, 0, 0.8); box-shadow: 0 0 8px rgba(255, 0, 0, 0.4); }
+      50%  { border-color: rgba(255, 0, 0, 0.2); box-shadow: 0 0 4px rgba(255, 0, 0, 0.1); }
+      100% { border-color: rgba(255, 0, 0, 0.8); box-shadow: 0 0 8px rgba(255, 0, 0, 0.4); }
+    }
+
+    /* heracenter表示用 上あごセンターがっちり*/
+    #heracenter-image {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 30%; /* 画面サイズの半分 */
+      max-width: 800px; /* 最大幅を設定 */
+      z-index: 4;
+      display: none; /* 初期状態では非表示 */
+    }
+    /* hera表示用 普通に釣れた*/
+    #hera-image {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 30%; /* 画面サイズの半分 */
+      max-width: 800px; /* 最大幅を設定 */
+      z-index: 4;
+      display: none; /* 初期状態では非表示 */
+    }
+
+    /* スコア表示パネル */
+    #score-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background-color: rgba(255, 255, 255, 0.8);
+      padding: 10px 15px;
+      border-radius: 10px;
+      font-family: sans-serif;
+      font-size: 16px;
+      z-index: 3;
+      text-align: left;
+      border: none; /* 初期状態ではボーダーをなくす */
+    }
+
+    #score-panel div {
+      margin-bottom: 5px;
+    }
+
+    /* ページ全体の初期設定 */
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: black;
+    }
+
+    /* コンテナ（背景・ウキ・パネルを含む） */
+    #container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* 背景画像（釣り場） */
+    #background {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      z-index: 0;
+    }
+
+    /* ウキをマスクするためのラッパー */
+    #uki-wrapper {
+      position: absolute;
+      overflow: hidden;
+      z-index: 2;
+      pointer-events: none;
+      display: none; /* 初期状態でウキを非表示 */
+    }
+
+    /* ウキ画像 */
+    #uki {
+      display: block;
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform-origin: top left;
+    }
+
+    /* 操作パネル（右下） */
+    #control-panel {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background-color: rgba(255, 255, 255, 0.8);
+      padding: 10px 15px;
+      border-radius: 10px;
+      font-family: sans-serif;
+      font-size: 14px;
+      z-index: 3;
+    }
+
+    /* ボタンの共通スタイル */
+    .control-button {
+      padding: 5px 10px;
+      font-size: 48pt;
+      font-family: 'Uzura', sans-serif;
+      background: linear-gradient(to bottom, #ffffff, #dddddd);
+      border-radius: 8px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+      cursor: pointer;
+      display: block; /* Ensure both buttons take full width */
+      pointer-events: auto;
+      width: 280px; /* 揃えるために固定幅を設定 */
+      text-align: center; /* 中央揃え */
+    }
+
+    /* 投入ボタン */
+    #start-button {
+      border: 5px solid red;
+      animation: blink-border 2s infinite;
+    }
+
+    /* アワセボタン */
+    #set-button {
+      margin-top: 10px;
+    }
+
+    /* 経過時間表示 */
+    #timer {
+      margin-top: 5px;
+      font-weight: bold;
+      font-size: 48pt;
+      font-family: 'Uzura', sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <!-- 背景画像 -->
+    <img id="background" src="turiba.png" alt="釣り場の背景">
+    <!-- ウキ -->
+    <div id="uki-wrapper">
+      <img id="uki" src="herauki.png" alt="ウキ">
+    </div>
+    <!-- 操作パネル -->
+    <div id="control-panel">
+      <button id="start-button" class="control-button">投入</button> <!-- 投入ボタン -->
+      <button id="set-button" class="control-button" disabled>アワセ</button> <!-- アワセボタン -->
+      <div id="timer">00:00:00</div>
+    </div>
+
+    <!-- スコア表示パネル -->
+    <div id="score-panel" style="font-family: 'Uzura', sans-serif; font-size: 24pt;">
+      <div>普通に釣ったヘラ: <span id="hera-count">000</span>匹 x 1pt</div>
+      <div>センターがっちり: <span id="heracenter-count">000</span>匹 x 10pt</div>
+      <div>合計点: <span id="total-point">000</span>pt</div>
+    <button id="new-game-button" class="control-button">もう一度</button>
+    </div>
+
+    <img id="heracenter-image" src="./pic/heracenter.jpg" alt="センターがっちり">
+    <img id="hera-image" src="./pic/hera.png" alt="ヘラ">
+  </div>
+
+  <script>
+    // =========================================================================================
+    // 定数とグローバル変数
+    // =========================================================================================
+    // DOM要素の参照
+    const container = document.getElementById('container'); // 全体のコンテナdiv
+    const background = document.getElementById('background'); // 背景画像（釣り場の風景）のimg要素
+    const timerDisplay = document.getElementById('timer'); // 経過時間を表示するdiv
+
+    const uki = document.getElementById('uki'); // ウキの画像要素
+    const ukiWrapper = document.getElementById('uki-wrapper'); // ウキをマスク表示するためのラッパーdiv
+
+    const heracenterImage = document.getElementById('heracenter-image'); // ヘラ画像(センターがっちり)
+    const heraImage = document.getElementById('hera-image'); // ヘラ画像(センターがっちり)
+
+    const startButton = document.getElementById('start-button'); // 「投入」ボタン
+    const setButton = document.getElementById('set-button'); // 「アワセ」ボタン
+    const newGameButton = document.getElementById('new-game-button');
+
+    // -----------------------------------------------------------------------------------------
+    // ゲーム時間
+    let timeLeft = 0.5 * 60 * 1000; // 5 minutes in milliseconds
+    let timerInterval = null; // setIntervalのID、タイマー更新用
+    let timerStarted = false;     // タイマー開始フラグ
+
+    // -----------------------------------------------------------------------------------------
+    // スコア変数
+    let heraCount = 0;
+    let heracenterCount = 0;
+    // スコア表示用の要素
+    const heraCountDisplay = document.getElementById('hera-count');
+    const heracenterCountDisplay = document.getElementById('heracenter-count');
+    const totalCountDisplay = document.getElementById('total-point');
+    
+
+    // -----------------------------------------------------------------------------------------
+    // ウキの位置(上下幅)
+    let offset = 0; // ウキY軸のオフセット
+    const offsetHistoryMax = 3; // うきY軸のヒストリーここが難易度調整
+    let offsetHistory = [];
+
+    // ウキ表示調整用スケール変数
+    let ukiScale = 1; // ウキの拡大率（背景に対する相対サイズ）
+    let maskHeight = 0; // ウキの上半分の高さ（マスク用）
+    let scaledHeight = 0; // スケーリング後のウキの高さ（px）
+
+    // =========================================================================================
+    // ウキと背景のサイズ・位置調整関数
+    // =========================================================================================
+    function positionUki() {
+      const containerRect = container.getBoundingClientRect(); // コンテナのサイズ情報を取得
+      const bgRatio = background.naturalWidth / background.naturalHeight; // 背景画像の縦横比
+      const containerRatio = containerRect.width / containerRect.height; // コンテナの縦横比
+
+      let bgDisplayWidth, bgDisplayHeight;
+      if (bgRatio > containerRatio) { // 背景が横に広い場合：幅を基準にスケーリング
+        bgDisplayWidth = containerRect.width;
+        bgDisplayHeight = containerRect.width / bgRatio;
+      } else { // 背景が縦に長い場合：高さを基準にスケーリング
+        bgDisplayHeight = containerRect.height;
+        bgDisplayWidth = containerRect.height * bgRatio;
+      }
+
+      const bgScale = bgDisplayWidth / background.naturalWidth; // 背景を表示したときのスケール（幅基準）
+      ukiScale = bgScale * 0.2;
+
+      const originalWidth = uki.naturalWidth; // ウキ画像のオリジナル幅
+      const originalHeight = uki.naturalHeight; // ウキ画像のオリジナル高さ
+      const scaledWidth = originalWidth * ukiScale; // スケーリング後のウキの幅
+      scaledHeight = originalHeight * ukiScale;
+      maskHeight = scaledHeight / 2;
+
+      const bgLeft = (containerRect.width - bgDisplayWidth) / 2; // 背景を中央に寄せるための左マージン
+      const bgTop = (containerRect.height - bgDisplayHeight) / 2; // 背景を中央に寄せるための上マージン
+
+      const centerX = bgLeft + (bgDisplayWidth - scaledWidth) / 2; // ウキを背景中央に配置するX座標
+      const fixedWaterlineY = bgTop + bgDisplayHeight * 0.75; // 水面のY座標（背景の下1/4）
+
+      ukiWrapper.style.left = `${centerX}px`;
+      ukiWrapper.style.top = `${fixedWaterlineY - maskHeight}px`;
+      ukiWrapper.style.width = `${scaledWidth}px`;
+      ukiWrapper.style.height = `${maskHeight}px`;
+
+      uki.style.width = `${originalWidth}px`;
+      uki.style.height = `${originalHeight}px`;
+      uki.style.transform = `scale(${ukiScale})`;
+      uki.style.top = `0px`;
+    }
+
+    // =========================================================================================
+    // 画像読み込み完了後にコールバック実行
+    // =========================================================================================
+    function whenLoaded(img, callback) {
+      if (img.complete) callback(); // 画像がすでに読み込まれている場合、すぐにコールバック実行
+      else img.onload = callback; // 読み込みがまだの場合、onloadでコールバック実行
+    }
+
+    // =========================================================================================
+    // ウキの動き
+    // =========================================================================================
+    function animateUki(intensity = 1) {
+
+      for (let i = offsetHistoryMax - 1; i > 0; i--) { // offset の履歴更新
+        offsetHistory[i] = offsetHistory[i - 1];
+      }
+      offsetHistory[0] = offset ;
+
+      if (Math.random() < 0.1) { // 消込
+        // 10%の確率でoffsetを0にして、ランダムな時間待機
+        offset = 40;
+        uki.style.transition = 'top 0.2s ease-in-out';
+        uki.style.top = `${offset}px`;
+        const delay = 3000 + Math.random() * 5000; // 最大2秒の遅延
+        setTimeout(() => {
+          animateUki(intensity); // 待機後、アニメーションを再開
+        }, delay);
+        return; // アニメーション関数の実行を中断
+      }
+
+      if (Math.random() < 0.8) { // 魚が寄っていない
+        // 80%の確率でoffsetを0にして、ランダムな時間待機
+        offset = 0;
+        uki.style.transition = 'top 0.2s ease-in-out';
+        uki.style.top = `${offset}px`;
+        const delay = Math.random() * 3000; // 最大2秒の遅延
+        setTimeout(() => {
+          animateUki(intensity); // 待機後、アニメーションを再開
+        }, delay);
+        return; // アニメーション関数の実行を中断
+      }
+
+      // ゆらゆら状態
+      let rand = Math.random() - 0.5; // -0.5〜0.5の乱数
+      offset = rand * rand * 24 * intensity * Math.sign(rand); // 上下揺れ幅（-6〜6pxを非線形に）
+      if (Math.random() < 0.01) {
+        offset *= 10; // 1%の確率でoffsetを5倍にする
+      }
+      if (Math.random() < 0.1) {
+        offset *= 10; // 10%の確率でoffsetを2倍にする
+      }
+      uki.style.transition = 'top 0.2s ease-in-out';
+      uki.style.top = `${offset}px`;
+
+    }
+
+    // =========================================================================================
+    // BGM再生の制御(野鳥の声をランダム再生)
+    // =========================================================================================
+    function playRandomBGM() {
+      const bgmList = [
+        './bgm/ウグイス.mp3', './bgm/ウグイスのさえずり1.mp3', './bgm/オオヨシキリのさえずり.mp3',
+        './bgm/カッコウ.mp3', './bgm/カッコウの鳴き声.mp3', './bgm/カラスが鳴く夕方.mp3',
+        './bgm/カラスに囲まれる.mp3', './bgm/キジ.mp3', './bgm/キジバトのさえずり1.mp3',
+        './bgm/ヒバリのさえずり.mp3', './bgm/ホトトギス.mp3', './bgm/ミソサザイ.mp3'
+      ]; // BGMファイルのリスト
+
+      const audio = new Audio(); // BGM再生用のAudioインスタンス
+
+      function playNextBGM() {
+        const index = Math.floor(Math.random() * bgmList.length); // BGMリストからランダムに選ぶインデックス
+        const loopCount = Math.floor(Math.random() * 5) + 1; // 選ばれたBGMの繰り返し回数（1〜5回）
+        const delay = Math.random() * 180000; // 次のBGM再生までの遅延（最大3分）
+        const volume = 0.1 + Math.random() * 0.9; // 音量（遠近感を出すため0.1〜1.0のランダム）
+        const pause = 1000 + Math.random() * 2000; // BGMループ間のポーズ（1〜3秒）
+
+        audio.src = bgmList[index];
+        audio.volume = volume;
+        audio.loop = false;
+
+        let count = 0;
+        audio.onended = () => {
+          count++;
+          if (count < loopCount) { // 指定された回数だけ同じBGMを繰り返す
+            setTimeout(() => audio.play(), pause);
+          } else {
+            setTimeout(playNextBGM, delay);
+          }
+        };
+
+        audio.play().catch(e => {
+          console.log('Audio playback failed (user interaction required)', e);
+        });
+      }
+
+      document.body.addEventListener('click', () => {
+        playNextBGM();
+      }, { once: true });
+    }
+
+
+    // =========================================================================================
+    // 終了処理
+    // =========================================================================================
+    function endGame() {
+      clearInterval(timerInterval);
+//      alert('ゲーム終了！');
+      startButton.disabled = true;
+      setButton.disabled = true;
+//      document.getElementById('score-panel').style.border = '5px solid gold';
+      document.getElementById('score-panel').style.animation = 'blink-border 2s infinite';
+      newGameButton.disabled = false;
+
+      // setTimeoutで設定されたタイマーをクリア
+      let highestTimeoutId = setTimeout(function(){});
+      for (let i = 0 ; i < highestTimeoutId ; i++) {
+        clearTimeout(i); 
+      }
+    }
+
+    // =========================================================================================
+    // タイマー更新（HH:MM:SS）
+    // =========================================================================================
+    function updateTimer() {
+      timeLeft -= 1000; // 1秒減らす
+      // 終了処理
+      if (timeLeft <= 0) {
+        timeLeft = 0;
+        endGame() ; // 終了処理
+      }
+      // ---------------------------------------------------------------------------------------
+      // 表示
+      const minutes = Math.floor(timeLeft / (60 * 1000));
+      const seconds = Math.floor((timeLeft % (60 * 1000)) / 1000);
+      const milliseconds = timeLeft % 1000;
+      const mm = String(minutes).padStart(2, '0'); // 分（2桁ゼロ埋め）
+      const ss = String(seconds).padStart(2, '0'); // 秒（2桁ゼロ埋め）
+      timerDisplay.textContent = `00:${mm}:${ss}`;
+    }
+
+    // =========================================================================================
+    // 「投入」ボタンが押されたときの処理
+    // =========================================================================================
+    startButton.addEventListener('click', () => {
+      // 効果音：投入ボタンを押したとき
+      new Audio('./se/sword-gesture2.mp3').play();
+
+      // ボタンとウキの設定
+      ukiWrapper.style.display = 'block';
+      setButton.style.display = 'block';
+      setTimeout(() => {
+        setButton.disabled = false; // 「アワセ」ボタンを3秒後に有効化
+        new Audio('./se/decision22.mp3').play(); // ウキが立った的な音に変えたい
+      }, 3000);
+      startButton.disabled = true; // 「投入」ボタンを無効化
+
+      // 投入ボタンのスタイル変更
+      startButton.style.border = 'none';
+      startButton.style.animation = 'none';
+
+      // タイマーがまだ開始されていない場合のみ、タイマーを開始する
+      if (!timerStarted) {
+        // 2秒後にBGMを開始
+        setTimeout(() => {
+          playRandomBGM();
+        }, 2000);
+
+        // タイマーの初期化
+        startTime = new Date();
+        updateTimer();
+        timerInterval = setInterval(updateTimer, 1000);
+        timerStarted = true; // タイマー開始フラグを立てる
+        updateTimer();
+      }
+    });
+
+    // =========================================================================================
+    // 「アワセ」ボタンが押されたときの処理
+    // =========================================================================================
+    setButton.addEventListener('click', () => {
+      // 効果音：アワセた
+      new Audio('./se/sword-gesture2.mp3').play();
+      // ウキを非表示にする
+      ukiWrapper.style.display = 'none';
+      // ----------------------------------------------------------------------------------------
+      // アタリ判定処理開始
+      let normalHit = false;
+      let centerHit = false;
+      // 履歴の中でもヒットを見る
+      for (let i = 0; i < offsetHistory.length; i++) { // アタリ判定
+        if (Math.abs(offsetHistory[i]) >= 4) { // センターがっちり
+          centerHit = true;
+          break;
+        }
+        if (Math.abs(offsetHistory[i]) >= 1) { // ノーマル
+          normalHit = true;
+          break;
+        }
+      }
+      // ----------------------------------------------------------------------------------------
+      // 判定後処理
+      if (centerHit) { // センターがっちりの処理
+        let offset = 0;
+        heracenterImage.style.display = 'block'; // センターがっちり写真の表示
+        setTimeout(() => {
+          heracenterImage.style.display = 'none';
+        }, 3000);
+        // スコア加算
+        heracenterCount++;
+        heracenterCountDisplay.textContent = String(heracenterCount).padStart(3, '0');
+      }
+      else if (normalHit) { // 普通に釣れた時の処理
+        let offset = 0 ;
+        heraImage.style.display = 'block';    // ヘラ画像を3秒表示
+        setTimeout(() => {
+          heraImage.style.display = 'none';
+        }, 3000);
+        // スコア加算
+        heraCount++;
+        heraCountDisplay.textContent = String(+heraCount).padStart(3, '0');
+      }
+      // ----------------------------------------------------------------------------------------
+      // 共通の終了処理
+      totalCountDisplay.textContent = String(heracenterCount * 10 + heraCount).padStart(3, '0');
+
+      setButton.disabled = true; // 「アワセ」ボタンを無効化
+      setTimeout(() => {
+        startButton.disabled = false; // 「投入」ボタンを3秒後に有効にする
+        new Audio('./se/decision22.mp3').play(); // ウキが立った的な音に変えたい
+      }, 3000);
+    });
+
+    // =========================================================================================
+    // ページ初期化処理
+    // =========================================================================================
+    whenLoaded(background, () => {
+      whenLoaded(uki, () => {
+        positionUki(); // サイズ調整
+        window.addEventListener('resize', positionUki);
+        setInterval(() => animateUki(), 200); // ウキを動かす
+      });
+    });
+
+    // =========================================================================================
+    // 新規ボタン
+    // =========================================================================================
+      newGameButton.addEventListener('click', () => {
+        // Reset timer
+        timeLeft = 0.5 * 60 * 1000; // Reset to 30 seconds
+        timerStarted = false;
+        clearInterval(timerInterval);
+        timerDisplay.textContent = '00:00:00';
+
+        // Reset score
+        heraCount = 0;
+        heracenterCount = 0;
+        heraCountDisplay.textContent = '000';
+        heracenterCountDisplay.textContent = '000';
+        totalCountDisplay.textContent = '000';
+
+        // Enable start button, disable set button
+        startButton.disabled = false;
+        setButton.disabled = true;
+//        setButton.style.display = 'none';
+        ukiWrapper.style.display = 'none';
+
+        // Reset button styles
+        startButton.style.border = '5px solid red';
+        startButton.style.animation = 'blink-border 2s infinite';
+        document.getElementById('score-panel').style.animation = 'none';
+        document.getElementById('score-panel').style.border = 'none';
+        newGameButton.disabled = true;
+      });
+      newGameButton.disabled = true;
+  </script>
+</body>
+</html>
